@@ -3,7 +3,6 @@ const closeApplyForm = document.getElementById("closeApplyForm");
 const applicationModal = document.getElementById("application-modal");
 const applicationForm = document.getElementById("dmrcApplicationForm");
 const categoryInput = document.getElementById("category");
-const serviceInput = document.getElementById("serviceName");
 const feeAmount = document.getElementById("feeAmount");
 const ackBox = document.getElementById("acknowledgementBox");
 const ackNumber = document.getElementById("ackNumber");
@@ -11,25 +10,21 @@ const downloadPdf = document.getElementById("downloadPdf");
 const photoInput = document.getElementById("candidatePhoto");
 
 const servicesByCode = {
-  BASIC_FORM: {
-    name: "Basic Job Form Assistance",
-    amount: 49
+  OBC_CATEGORY: {
+    name: "OBC Category",
+    amount: 350
   },
-  PREMIUM_REVIEW: {
-    name: "Premium Application Review",
-    amount: 99
+  GEN_CATEGORY: {
+    name: "GEN Category",
+    amount: 400
   },
-  DOCUMENT_UPLOAD: {
-    name: "Document Upload Assistance",
-    amount: 149
+  ST_CATEGORY: {
+    name: "ST Category",
+    amount: 250
   },
-  JOB_ALERT: {
-    name: "Job Alert Access",
-    amount: 199
-  },
-  FULL_SUPPORT: {
-    name: "Full Application Support",
-    amount: 299
+  SC_CATEGORY: {
+    name: "SC Category",
+    amount: 250
   }
 };
 
@@ -100,8 +95,8 @@ function closeModal() {
 }
 
 function updateFee() {
-  const service = servicesByCode[serviceInput.value];
-  feeAmount.textContent = service ? `₹${service.amount} INR` : "Select service";
+  const service = servicesByCode[`${categoryInput.value}_CATEGORY`];
+  feeAmount.textContent = service ? `₹${service.amount} INR` : "Select category";
 }
 
 function createAcknowledgementNumber() {
@@ -145,7 +140,7 @@ function formatDateOfBirth(value) {
 
 function getFormData() {
   const category = categoryInput.value;
-  const serviceCode = serviceInput.value;
+  const serviceCode = `${category}_CATEGORY`;
   const service = servicesByCode[serviceCode];
 
   return {
@@ -244,9 +239,9 @@ openApplyForm.addEventListener("click", (event) => {
   openModal();
 });
 
-document.querySelectorAll("[data-service-code]").forEach((button) => {
+document.querySelectorAll("[data-category]").forEach((button) => {
   button.addEventListener("click", () => {
-    serviceInput.value = button.dataset.serviceCode;
+    categoryInput.value = button.dataset.category;
     updateFee();
     openModal();
   });
@@ -260,7 +255,7 @@ applicationModal.addEventListener("click", (event) => {
   }
 });
 
-serviceInput.addEventListener("change", updateFee);
+categoryInput.addEventListener("change", updateFee);
 
 photoInput.addEventListener("change", () => {
   const file = photoInput.files[0];

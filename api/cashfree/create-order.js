@@ -11,25 +11,21 @@ const {
 const { upsertTransaction } = require("../_transactions");
 
 const servicesByCode = {
-  BASIC_FORM: {
-    name: "Basic Job Form Assistance",
-    amount: 49
+  OBC_CATEGORY: {
+    name: "OBC Category",
+    amount: 350
   },
-  PREMIUM_REVIEW: {
-    name: "Premium Application Review",
-    amount: 99
+  GEN_CATEGORY: {
+    name: "GEN Category",
+    amount: 400
   },
-  DOCUMENT_UPLOAD: {
-    name: "Document Upload Assistance",
-    amount: 149
+  ST_CATEGORY: {
+    name: "ST Category",
+    amount: 250
   },
-  JOB_ALERT: {
-    name: "Job Alert Access",
-    amount: 199
-  },
-  FULL_SUPPORT: {
-    name: "Full Application Support",
-    amount: 299
+  SC_CATEGORY: {
+    name: "SC Category",
+    amount: 250
   }
 };
 
@@ -55,12 +51,16 @@ module.exports = async function handler(request, response) {
     const customer = payload.customer || {};
     const customerPhone = normalizePhone(customer.phone);
 
+    if (serviceCode !== `${category}_CATEGORY`) {
+      return sendJson(response, 400, { error: "Payment category must match candidate category." });
+    }
+
     if (!expectedAmount) {
-      return sendJson(response, 400, { error: "Invalid service selected." });
+      return sendJson(response, 400, { error: "Invalid category selected." });
     }
 
     if (amount !== expectedAmount) {
-      return sendJson(response, 400, { error: "Invalid payment amount for selected service." });
+      return sendJson(response, 400, { error: "Invalid payment amount for selected category." });
     }
 
     if (customerPhone.length !== 10) {
