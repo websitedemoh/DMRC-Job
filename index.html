@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DMRC Recruitment 2026</title>
   <link rel="stylesheet" href="style.css" />
+  <script>
+    window.DMRC_API_BASE_URL = "";
+  </script>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 </head>
 <body>
   <div class="site-wrap">
@@ -301,12 +305,12 @@
 
           <div class="payment-box">
             <p>Application Fee: <strong id="feeAmount">Select category</strong></p>
-            <button type="submit" class="pay-now-btn">Submit Application</button>
+            <button type="submit" class="pay-now-btn">Pay Now</button>
           </div>
         </form>
 
         <div class="acknowledgement-box" id="acknowledgementBox" hidden>
-          <h3>Application Submitted</h3>
+          <h3>Payment Successful</h3>
           <p>Your acknowledgement number is <strong id="ackNumber"></strong></p>
           <button type="button" class="download-pdf-btn" id="downloadPdf">Download Acknowledgement Slip</button>
         </div>
