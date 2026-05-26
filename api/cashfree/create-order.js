@@ -9,6 +9,13 @@ const {
   validateConfig
 } = require("../_cashfree");
 
+const feeByCategory = {
+  SC: 250,
+  ST: 250,
+  OBC: 350,
+  GEN: 400
+};
+
 module.exports = async function handler(request, response) {
   if (handleOptions(request, response)) {
     return;
@@ -23,23 +30,33 @@ module.exports = async function handler(request, response) {
     validateConfig(config);
 
     const payload = getJsonBody(request);
+    const category = String(payload.category || "").toUpperCase();
+    const expectedAmount = feeByCategory[category];
     const amount = Number(payload.amount);
     const customer = payload.customer || {};
     const customerPhone = normalizePhone(customer.phone);
 
-    if (!Number.isFinite(amount) || amount < 1) {
-      return sendJson(response, 400, { error: "Invalid payment amount." });
+    if (!expectedAmount) {
+      return sendJson(response, 400, { error: "Invalid candidate category." });
+    }
+
+    if (amount !== expectedAmount) {
+      return sendJson(response, 400, { error: "Invalid payment amount for selected category." });
     }
 
     if (customerPhone.length !== 10) {
       return sendJson(response, 400, { error: "Customer phone must be a 10 digit mobile number." });
     }
 
+    if (!String(customer.name || "").trim() || !String(customer.email || "").includes("@")) {
+      return sendJson(response, 400, { error: "Valid customer name and email are required." });
+    }
+
     const orderId = `DMRC_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
     const origin = getRequestOrigin(request);
     const orderPayload = {
       order_id: orderId,
-      order_amount: Number(amount.toFixed(2)),
+      order_amount: Number(expectedAmount.toFixed(2)),
       order_currency: "INR",
       customer_details: {
         customer_id: String(payload.acknowledgement || orderId).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 45),
@@ -53,7 +70,7 @@ module.exports = async function handler(request, response) {
       order_note: "DMRC Apprentice application fee",
       order_tags: {
         acknowledgement: String(payload.acknowledgement || ""),
-        category: String(payload.category || ""),
+        category,
         post: String(payload.post || "")
       }
     };

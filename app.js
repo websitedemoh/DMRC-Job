@@ -16,8 +16,61 @@ const feeByCategory = {
   GEN: 400
 };
 
+const apiBaseUrl = (window.DMRC_API_BASE_URL || "").replace(/\/$/, "");
+const isGithubPages = window.location.hostname.endsWith("github.io");
+
 let uploadedPhoto = "";
 let submittedData = null;
+
+function getApiUrl(path) {
+  if (apiBaseUrl) {
+    return `${apiBaseUrl}${path}`;
+  }
+
+  if (isGithubPages) {
+    throw new Error("Payment backend is not available on GitHub Pages. Please open the Vercel deployment or set DMRC_API_BASE_URL to your backend URL.");
+  }
+
+  return path;
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    throw new Error("Payment backend did not return JSON. Please make sure the Vercel backend is deployed and reachable.");
+  }
+
+  return response.json();
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(getApiUrl(url), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(data.error || "Payment request failed.");
+  }
+
+  return data;
+}
+
+async function getJson(url) {
+  const response = await fetch(getApiUrl(url));
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(data.error || "Payment request failed.");
+  }
+
+  return data;
+}
 
 function openModal() {
   applicationModal.classList.add("is-open");
@@ -99,14 +152,45 @@ function showPaidApplication(data) {
   applicationForm.querySelector(".pay-now-btn").textContent = `Paid Rs ${submittedData.fee}`;
 }
 
-function completeDemoPayment(data) {
+async function openPaymentCheckout(data) {
+  if (!window.Cashfree) {
+    throw new Error("Cashfree checkout could not load. Please check your internet connection.");
+  }
+
+  const order = await postJson("/api/cashfree/create-order", {
+    amount: data.fee,
+    acknowledgement: data.acknowledgement,
+    post: data.post,
+    category: data.category,
+    customer: {
+      name: data.name,
+      email: data.email,
+      phone: data.mobile
+    }
+  });
+
+  const cashfree = Cashfree({
+    mode: order.mode
+  });
+
+  await cashfree.checkout({
+    paymentSessionId: order.paymentSessionId,
+    redirectTarget: "_modal"
+  });
+
+  const statusData = await getJson(`/api/cashfree/order-status?order_id=${encodeURIComponent(order.orderId)}`);
+
+  if (statusData.orderStatus !== "PAID") {
+    throw new Error("Payment is not completed yet. Please complete the payment and try again.");
+  }
+
   const submittedAt = new Date();
 
   return {
     ...data,
-    orderId: `DEMO-${Date.now()}`,
-    paymentStatus: "SUBMITTED",
-    transactionNo: createSlipNumber("TXN"),
+    orderId: order.orderId,
+    paymentStatus: statusData.orderStatus,
+    transactionNo: order.orderId,
     transactionDate: formatReceiptDate(submittedAt),
     bankRefNo: createSlipNumber("BRN"),
     receiptNo: createSlipNumber("REC")
@@ -160,10 +244,10 @@ applicationForm.addEventListener("submit", async (event) => {
   const applicationData = getFormData();
 
   payButton.disabled = true;
-  payButton.textContent = "Submitting Application...";
+  payButton.textContent = "Opening Payment...";
 
   try {
-    const paidApplication = completeDemoPayment(applicationData);
+    const paidApplication = await openPaymentCheckout(applicationData);
     showPaidApplication(paidApplication);
   } catch (error) {
     alert(error.message);
