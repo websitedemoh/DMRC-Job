@@ -24,6 +24,7 @@
       <section class="post-intro">
         <h2>DMRC Delhi Metro Rail Corporation Ltd Apprentice Recruitment 2026</h2>
         <p class="post-date">Post Date: May 15, 2026 4:23 Pm</p>
+        <p class="site-disclaimer"><strong>Unofficial demo website:</strong> DMRC Job is an independent informational and digital assistance website. We are not affiliated with Delhi Metro Rail Corporation Limited. Candidates must verify all recruitment details through the official DMRC website before applying or making any payment.</p>
         <p><strong>DMRC Delhi Metro Rail Corporation Ltd</strong> Has Released A <strong>Notification</strong> On Its <strong>Official Website</strong> For The Recruitment Of <strong>DMRC Various Trade Apprentices Posts.</strong> This Recruitment Is For <strong>1483 Positions.</strong> <strong>DMRC Application Form</strong> Has Started On <strong>12 May 2026</strong> &amp; The Candidates Can Apply Until <strong>11 June 2026.</strong> Candidates Must Check The Complete Details For <strong>DMRC Delhi Metro Rail Corporation Ltd Apprentice Recruitment 2026</strong>, Which Has Given Below.</p>
       </section>
 
@@ -77,6 +78,38 @@
             <strong>1483 Post</strong>
             <a class="apply-now-btn" href="#application-modal" id="openApplyForm">Apply Now</a>
           </div>
+        </div>
+      </section>
+
+      <section class="services-box" id="services">
+        <h3>DMRC Job Digital Services &amp; Pricing</h3>
+        <p class="services-note">Select a digital/job-related assistance service before payment. All prices are in INR and inclusive/exclusive of applicable taxes as per business policy.</p>
+        <div class="services-grid">
+          <article>
+            <h4>Basic Job Form Assistance</h4>
+            <strong>₹49 INR</strong>
+            <button type="button" class="service-pay-btn" data-service-code="BASIC_FORM">Pay Now</button>
+          </article>
+          <article>
+            <h4>Premium Application Review</h4>
+            <strong>₹99 INR</strong>
+            <button type="button" class="service-pay-btn" data-service-code="PREMIUM_REVIEW">Pay Now</button>
+          </article>
+          <article>
+            <h4>Document Upload Assistance</h4>
+            <strong>₹149 INR</strong>
+            <button type="button" class="service-pay-btn" data-service-code="DOCUMENT_UPLOAD">Pay Now</button>
+          </article>
+          <article>
+            <h4>Job Alert Access</h4>
+            <strong>₹199 INR</strong>
+            <button type="button" class="service-pay-btn" data-service-code="JOB_ALERT">Pay Now</button>
+          </article>
+          <article>
+            <h4>Full Application Support</h4>
+            <strong>₹299 INR</strong>
+            <button type="button" class="service-pay-btn" data-service-code="FULL_SUPPORT">Pay Now</button>
+          </article>
         </div>
       </section>
 
@@ -236,7 +269,7 @@
       <div class="application-card" role="dialog" aria-modal="true" aria-labelledby="application-title">
         <button class="close-modal" id="closeApplyForm" type="button" aria-label="Close application form">X</button>
         <h2 id="application-title">DMRC Apprentice Application Form</h2>
-        <p class="form-note">All fields are required. Fee will be calculated automatically after selecting category.</p>
+        <p class="form-note">All fields are required. Select a service to continue payment. This is an unofficial demo website and not a DMRC payment portal.</p>
 
         <form id="dmrcApplicationForm" class="application-form">
           <div class="form-grid">
@@ -283,6 +316,18 @@
             </label>
 
             <label>
+              Service
+              <select id="serviceName" name="serviceName" required>
+                <option value="">Select Service</option>
+                <option value="BASIC_FORM">Basic Job Form Assistance - ₹49 INR</option>
+                <option value="PREMIUM_REVIEW">Premium Application Review - ₹99 INR</option>
+                <option value="DOCUMENT_UPLOAD">Document Upload Assistance - ₹149 INR</option>
+                <option value="JOB_ALERT">Job Alert Access - ₹199 INR</option>
+                <option value="FULL_SUPPORT">Full Application Support - ₹299 INR</option>
+              </select>
+            </label>
+
+            <label>
               Mobile Number
               <input type="tel" id="mobileNumber" name="mobileNumber" placeholder="Enter mobile number" pattern="[0-9]{10}" required />
             </label>
@@ -304,7 +349,7 @@
           </div>
 
           <div class="payment-box">
-            <p>Application Fee: <strong id="feeAmount">Select category</strong></p>
+            <p>Service Fee: <strong id="feeAmount">Select service</strong></p>
             <button type="submit" class="pay-now-btn">Pay Now</button>
           </div>
         </form>
@@ -368,6 +413,10 @@
               <dd id="printFee"></dd>
             </div>
             <div>
+              <dt>Service</dt>
+              <dd id="printService"></dd>
+            </div>
+            <div>
               <dt>Status</dt>
               <dd>Paid</dd>
             </div>
@@ -411,23 +460,13 @@
     </section>
 
     <footer class="footer">
-      <div class="connect">
-        <h3>Connect With Us</h3>
-        <div class="social-grid">
-          <a href="#">DMRC @X</a>
-          <a href="#">DMRC @Instagram</a>
-          <a href="#">DMRC @Facebook</a>
-          <a href="#">DMRC @YouTube</a>
-          <a href="#">DMRC Mobile App</a>
-        </div>
-      </div>
       <div class="footer-bottom">
-        <p>Copyright (c) 2026 | <strong>Delhi Metro Rail Corporation Limited</strong><br>DMRC Recruitment Portal</p>
+        <p><strong>DMRC Job</strong><br>Website: https://dmrcr-job.vercel.app<br>Copyright (c) 2026 DMRC Job. All rights reserved.</p>
         <nav aria-label="Footer navigation">
-          <a href="#">Home</a>
-          <a href="#">Contact</a>
-          <a href="#">Privacy Policy</a>
-          <a href="#">Disclaimer</a>
+          <a href="/">Home</a>
+          <a href="/contact-us">Contact Us</a>
+          <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+          <a href="/refunds-and-cancellations">Refunds &amp; Cancellations</a>
         </nav>
       </div>
     </footer>

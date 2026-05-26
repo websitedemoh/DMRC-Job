@@ -10,11 +10,27 @@ const {
 } = require("../_cashfree");
 const { upsertTransaction } = require("../_transactions");
 
-const feeByCategory = {
-  SC: 250,
-  ST: 250,
-  OBC: 350,
-  GEN: 400
+const servicesByCode = {
+  BASIC_FORM: {
+    name: "Basic Job Form Assistance",
+    amount: 49
+  },
+  PREMIUM_REVIEW: {
+    name: "Premium Application Review",
+    amount: 99
+  },
+  DOCUMENT_UPLOAD: {
+    name: "Document Upload Assistance",
+    amount: 149
+  },
+  JOB_ALERT: {
+    name: "Job Alert Access",
+    amount: 199
+  },
+  FULL_SUPPORT: {
+    name: "Full Application Support",
+    amount: 299
+  }
 };
 
 module.exports = async function handler(request, response) {
@@ -32,17 +48,19 @@ module.exports = async function handler(request, response) {
 
     const payload = getJsonBody(request);
     const category = String(payload.category || "").toUpperCase();
-    const expectedAmount = feeByCategory[category];
+    const serviceCode = String(payload.serviceCode || "").toUpperCase();
+    const selectedService = servicesByCode[serviceCode];
+    const expectedAmount = selectedService && selectedService.amount;
     const amount = Number(payload.amount);
     const customer = payload.customer || {};
     const customerPhone = normalizePhone(customer.phone);
 
     if (!expectedAmount) {
-      return sendJson(response, 400, { error: "Invalid candidate category." });
+      return sendJson(response, 400, { error: "Invalid service selected." });
     }
 
     if (amount !== expectedAmount) {
-      return sendJson(response, 400, { error: "Invalid payment amount for selected category." });
+      return sendJson(response, 400, { error: "Invalid payment amount for selected service." });
     }
 
     if (customerPhone.length !== 10) {
@@ -68,11 +86,13 @@ module.exports = async function handler(request, response) {
       order_meta: {
         return_url: `${origin}/index.html?order_id=${orderId}`
       },
-      order_note: "DMRC Apprentice application fee",
+      order_note: `DMRC Job - ${selectedService.name}`,
       order_tags: {
         acknowledgement: String(payload.acknowledgement || ""),
         category,
-        post: String(payload.post || "")
+        post: String(payload.post || ""),
+        serviceCode,
+        serviceName: selectedService.name
       }
     };
 
@@ -97,6 +117,8 @@ module.exports = async function handler(request, response) {
       acknowledgement: String(payload.acknowledgement || ""),
       category,
       post: String(payload.post || ""),
+      serviceCode,
+      serviceName: selectedService.name,
       customer: {
         name: String(customer.name || ""),
         email: String(customer.email || ""),

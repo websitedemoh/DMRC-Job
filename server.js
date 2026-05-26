@@ -21,6 +21,29 @@ const cashfreeBaseUrl =
     ? "https://sandbox.cashfree.com/pg"
     : "https://api.cashfree.com/pg";
 
+const servicesByCode = {
+  BASIC_FORM: {
+    name: "Basic Job Form Assistance",
+    amount: 49
+  },
+  PREMIUM_REVIEW: {
+    name: "Premium Application Review",
+    amount: 99
+  },
+  DOCUMENT_UPLOAD: {
+    name: "Document Upload Assistance",
+    amount: 149
+  },
+  JOB_ALERT: {
+    name: "Job Alert Access",
+    amount: 199
+  },
+  FULL_SUPPORT: {
+    name: "Full Application Support",
+    amount: 299
+  }
+};
+
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -121,12 +144,19 @@ async function createCashfreeOrder(request, response) {
     validateCashfreeConfig();
 
     const payload = await readJsonBody(request);
+    const serviceCode = String(payload.serviceCode || "").toUpperCase();
+    const selectedService = servicesByCode[serviceCode];
+    const expectedAmount = selectedService && selectedService.amount;
     const amount = Number(payload.amount);
     const customer = payload.customer || {};
     const customerPhone = normalizePhone(customer.phone);
 
-    if (!Number.isFinite(amount) || amount < 1) {
-      return sendJson(response, 400, { error: "Invalid payment amount." });
+    if (!expectedAmount) {
+      return sendJson(response, 400, { error: "Invalid service selected." });
+    }
+
+    if (amount !== expectedAmount) {
+      return sendJson(response, 400, { error: "Invalid payment amount for selected service." });
     }
 
     if (customerPhone.length !== 10) {
@@ -148,11 +178,13 @@ async function createCashfreeOrder(request, response) {
       order_meta: {
         return_url: `${origin}/index.html?order_id=${orderId}`
       },
-      order_note: "DMRC Apprentice application fee",
+      order_note: `DMRC Job - ${selectedService.name}`,
       order_tags: {
         acknowledgement: String(payload.acknowledgement || ""),
         category: String(payload.category || ""),
-        post: String(payload.post || "")
+        post: String(payload.post || ""),
+        serviceCode,
+        serviceName: selectedService.name
       }
     };
 
@@ -224,7 +256,12 @@ async function getCashfreeOrderStatus(request, response, url) {
 }
 
 function serveStaticFile(request, response, url) {
-  const requestedPath = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
+  const cleanRoutes = {
+    "/contact-us": "/contact-us.html",
+    "/terms-and-conditions": "/terms-and-conditions.html",
+    "/refunds-and-cancellations": "/refunds-and-cancellations.html"
+  };
+  const requestedPath = cleanRoutes[url.pathname] || (url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname));
   const filePath = path.resolve(rootDir, `.${requestedPath}`);
 
   if (!filePath.startsWith(rootDir)) {

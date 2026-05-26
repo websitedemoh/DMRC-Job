@@ -3,17 +3,34 @@ const closeApplyForm = document.getElementById("closeApplyForm");
 const applicationModal = document.getElementById("application-modal");
 const applicationForm = document.getElementById("dmrcApplicationForm");
 const categoryInput = document.getElementById("category");
+const serviceInput = document.getElementById("serviceName");
 const feeAmount = document.getElementById("feeAmount");
 const ackBox = document.getElementById("acknowledgementBox");
 const ackNumber = document.getElementById("ackNumber");
 const downloadPdf = document.getElementById("downloadPdf");
 const photoInput = document.getElementById("candidatePhoto");
 
-const feeByCategory = {
-  SC: 250,
-  ST: 250,
-  OBC: 350,
-  GEN: 400
+const servicesByCode = {
+  BASIC_FORM: {
+    name: "Basic Job Form Assistance",
+    amount: 49
+  },
+  PREMIUM_REVIEW: {
+    name: "Premium Application Review",
+    amount: 99
+  },
+  DOCUMENT_UPLOAD: {
+    name: "Document Upload Assistance",
+    amount: 149
+  },
+  JOB_ALERT: {
+    name: "Job Alert Access",
+    amount: 199
+  },
+  FULL_SUPPORT: {
+    name: "Full Application Support",
+    amount: 299
+  }
 };
 
 const apiBaseUrl = (window.DMRC_API_BASE_URL || "").replace(/\/$/, "");
@@ -83,8 +100,8 @@ function closeModal() {
 }
 
 function updateFee() {
-  const fee = feeByCategory[categoryInput.value];
-  feeAmount.textContent = fee ? `Rs ${fee}` : "Select category";
+  const service = servicesByCode[serviceInput.value];
+  feeAmount.textContent = service ? `₹${service.amount} INR` : "Select service";
 }
 
 function createAcknowledgementNumber() {
@@ -128,6 +145,8 @@ function formatDateOfBirth(value) {
 
 function getFormData() {
   const category = categoryInput.value;
+  const serviceCode = serviceInput.value;
+  const service = servicesByCode[serviceCode];
 
   return {
     acknowledgement: createAcknowledgementNumber(),
@@ -135,11 +154,13 @@ function getFormData() {
     father: document.getElementById("fatherName").value.trim(),
     post: document.getElementById("postName").value.trim(),
     category,
+    serviceCode,
+    serviceName: service ? service.name : "",
     mobile: document.getElementById("mobileNumber").value.trim(),
     email: document.getElementById("emailId").value.trim(),
     dob: document.getElementById("dateOfBirth").value,
     address: document.getElementById("permanentAddress").value.trim(),
-    fee: feeByCategory[category],
+    fee: service ? service.amount : 0,
     photo: uploadedPhoto
   };
 }
@@ -151,7 +172,8 @@ function fillPrintableForm(data) {
   document.getElementById("printFather").textContent = data.father;
   document.getElementById("printPost").textContent = data.post;
   document.getElementById("printCategory").textContent = data.category;
-  document.getElementById("printFee").textContent = `Rs ${data.fee}`;
+  document.getElementById("printService").textContent = data.serviceName;
+  document.getElementById("printFee").textContent = `₹${data.fee} INR`;
   document.getElementById("printMobile").textContent = data.mobile;
   document.getElementById("printEmail").textContent = data.email;
   document.getElementById("printDob").textContent = formatDateOfBirth(data.dob);
@@ -167,7 +189,7 @@ function showPaidApplication(data) {
   fillPrintableForm(submittedData);
   ackNumber.textContent = submittedData.acknowledgement;
   ackBox.hidden = false;
-  applicationForm.querySelector(".pay-now-btn").textContent = `Paid Rs ${submittedData.fee}`;
+  applicationForm.querySelector(".pay-now-btn").textContent = `Paid ₹${submittedData.fee}`;
 }
 
 async function openPaymentCheckout(data) {
@@ -180,6 +202,8 @@ async function openPaymentCheckout(data) {
     acknowledgement: data.acknowledgement,
     post: data.post,
     category: data.category,
+    serviceCode: data.serviceCode,
+    serviceName: data.serviceName,
     customer: {
       name: data.name,
       email: data.email,
@@ -220,6 +244,14 @@ openApplyForm.addEventListener("click", (event) => {
   openModal();
 });
 
+document.querySelectorAll("[data-service-code]").forEach((button) => {
+  button.addEventListener("click", () => {
+    serviceInput.value = button.dataset.serviceCode;
+    updateFee();
+    openModal();
+  });
+});
+
 closeApplyForm.addEventListener("click", closeModal);
 
 applicationModal.addEventListener("click", (event) => {
@@ -228,7 +260,7 @@ applicationModal.addEventListener("click", (event) => {
   }
 });
 
-categoryInput.addEventListener("change", updateFee);
+serviceInput.addEventListener("change", updateFee);
 
 photoInput.addEventListener("change", () => {
   const file = photoInput.files[0];
