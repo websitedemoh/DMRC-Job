@@ -68,9 +68,9 @@ function formatDateOfBirth(value) {
 
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
     year: "numeric"
-  }).format(new Date(Number(year), Number(month) - 1, Number(day)));
+  }).format(new Date(Number(year), Number(month) - 1, Number(day))).replaceAll("/", "-");
 }
 
 function getFormData() {
