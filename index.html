@@ -297,80 +297,101 @@
         <div class="acknowledgement-box" id="acknowledgementBox" hidden>
           <h3>Application Submitted</h3>
           <p>Your acknowledgement number is <strong id="ackNumber"></strong></p>
-          <button type="button" class="download-pdf-btn" id="downloadPdf">Download Form PDF</button>
+          <button type="button" class="download-pdf-btn" id="downloadPdf">Download Acknowledgement Slip</button>
         </div>
       </div>
     </section>
 
     <section class="print-form" id="printForm" aria-hidden="true">
-      <div class="print-sheet">
-        <div class="print-header">
-          <h1>DMRC Recruitment</h1>
-          <h2>DMRC Apprentice Application Form 2026</h2>
-          <p>Acknowledgement No: <strong id="printAck"></strong></p>
-        </div>
+      <div class="receipt-sheet">
+        <div class="receipt-title">Payment Receipt Details</div>
 
-        <div class="print-box-grid">
-          <div class="print-field print-name-field">
-            <strong>Candidate Name</strong>
-            <span id="printName"></span>
+        <div class="receipt-body">
+          <div class="receipt-logo" aria-hidden="true">
+            <span>DMRC</span>
           </div>
 
-          <div class="print-photo-field">
-            <strong>Upload Photo</strong>
-            <div class="print-photo-box">
-              <img id="printPhoto" alt="Candidate photo" />
+          <div class="receipt-success">
+            <span class="success-icon">✓</span>
+            <strong>Success!</strong> Thank you for your application submission.
+          </div>
+
+          <p class="receipt-greeting">Dear <strong id="printName"></strong></p>
+          <p class="receipt-copy">The application fee has been recorded successfully.</p>
+
+          <dl class="receipt-details">
+            <div>
+              <dt>Email Address</dt>
+              <dd id="printEmail"></dd>
             </div>
-          </div>
+            <div>
+              <dt>Mobile No</dt>
+              <dd id="printMobile"></dd>
+            </div>
+            <div>
+              <dt>Registration No</dt>
+              <dd id="printAck"></dd>
+            </div>
+            <div>
+              <dt>Transaction No</dt>
+              <dd id="printTransaction"></dd>
+            </div>
+            <div>
+              <dt>Transaction Date</dt>
+              <dd id="printTransactionDate"></dd>
+            </div>
+            <div>
+              <dt>Bank Ref No</dt>
+              <dd id="printBankRef"></dd>
+            </div>
+            <div>
+              <dt>Receipt No</dt>
+              <dd id="printReceiptNo"></dd>
+            </div>
+            <div>
+              <dt>Amount</dt>
+              <dd id="printFee"></dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>Paid</dd>
+            </div>
+            <div>
+              <dt>Post</dt>
+              <dd id="printPost"></dd>
+            </div>
+            <div>
+              <dt>Category</dt>
+              <dd id="printCategory"></dd>
+            </div>
+            <div>
+              <dt>Father Name</dt>
+              <dd id="printFather"></dd>
+            </div>
+            <div>
+              <dt>Date Of Birth</dt>
+              <dd id="printDob"></dd>
+            </div>
+            <div>
+              <dt>Address</dt>
+              <dd id="printAddress"></dd>
+            </div>
+          </dl>
 
-          <div class="print-field print-status-field">
-            <strong>Application Status</strong>
-            <span>Paid and Submitted</span>
-          </div>
-
-          <div class="print-field">
-            <strong>Father Name</strong>
-            <span id="printFather"></span>
-          </div>
-
-          <div class="print-field">
-            <strong>Post</strong>
-            <span id="printPost"></span>
-          </div>
-
-          <div class="print-field">
-            <strong>Category</strong>
-            <span id="printCategory"></span>
-          </div>
-
-          <div class="print-field">
-            <strong>Mobile Number</strong>
-            <span id="printMobile"></span>
-          </div>
-
-          <div class="print-field">
-            <strong>Email ID</strong>
-            <span id="printEmail"></span>
-          </div>
-
-          <div class="print-field">
-            <strong>Date Of Birth</strong>
-            <span id="printDob"></span>
-          </div>
-
-          <div class="print-field full-print-field">
-            <strong>Permanent Address</strong>
-            <span id="printAddress"></span>
-          </div>
+          <p class="receipt-note">
+            Your registration number <strong id="printAckInline"></strong> is provisionally accepted. Your candidature is
+            subject to fulfilment of the prescribed criteria and verification of original documents.
+          </p>
         </div>
 
-        <div class="print-payment-box">
-          <p>Application Fee: <strong id="printFee"></strong></p>
-          <p>Payment Status: <strong>Paid</strong></p>
+        <div class="security-tips">
+          <h3>Security Tips</h3>
+          <p>
+            Keep this acknowledgement slip for your records. Do not share sensitive payment or personal information with
+            unknown persons.
+          </p>
+          <p>You can track your application status using the registration number shown above.</p>
         </div>
-
-        <p class="print-declaration">Declaration: I confirm that the details submitted in this application form are correct to the best of my knowledge.</p>
-        <div class="signature-line">Candidate Signature</div>
       </div>
     </section>
 
@@ -396,7 +417,6 @@
       </div>
     </footer>
   </div>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -41,6 +41,20 @@ function createAcknowledgementNumber() {
   return `DMRC-${datePart}-${randomPart}`;
 }
 
+function createSlipNumber(prefix) {
+  const datePart = new Date().toISOString().slice(2, 10).replaceAll("-", "");
+  const randomPart = Math.floor(100000000 + Math.random() * 900000000);
+  return `${prefix}${datePart}${randomPart}`;
+}
+
+function formatReceiptDate(value) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    hour12: true
+  }).format(value);
+}
+
 function getFormData() {
   const category = categoryInput.value;
 
@@ -61,6 +75,7 @@ function getFormData() {
 
 function fillPrintableForm(data) {
   document.getElementById("printAck").textContent = data.acknowledgement;
+  document.getElementById("printAckInline").textContent = data.acknowledgement;
   document.getElementById("printName").textContent = data.name;
   document.getElementById("printFather").textContent = data.father;
   document.getElementById("printPost").textContent = data.post;
@@ -70,7 +85,10 @@ function fillPrintableForm(data) {
   document.getElementById("printEmail").textContent = data.email;
   document.getElementById("printDob").textContent = data.dob;
   document.getElementById("printAddress").textContent = data.address;
-  document.getElementById("printPhoto").src = data.photo;
+  document.getElementById("printTransaction").textContent = data.transactionNo;
+  document.getElementById("printTransactionDate").textContent = data.transactionDate;
+  document.getElementById("printBankRef").textContent = data.bankRefNo;
+  document.getElementById("printReceiptNo").textContent = data.receiptNo;
 }
 
 function showPaidApplication(data) {
@@ -82,10 +100,16 @@ function showPaidApplication(data) {
 }
 
 function completeDemoPayment(data) {
+  const submittedAt = new Date();
+
   return {
     ...data,
     orderId: `DEMO-${Date.now()}`,
-    paymentStatus: "SUBMITTED"
+    paymentStatus: "SUBMITTED",
+    transactionNo: createSlipNumber("TXN"),
+    transactionDate: formatReceiptDate(submittedAt),
+    bankRefNo: createSlipNumber("BRN"),
+    receiptNo: createSlipNumber("REC")
   };
 }
 

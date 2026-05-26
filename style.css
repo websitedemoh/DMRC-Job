@@ -366,129 +366,117 @@ body {
   display: none;
 }
 
-.print-sheet {
-  width: 880px;
+.receipt-sheet {
+  width: 640px;
   margin: 0 auto;
-  padding: 24px;
-  border: 2px solid #111;
-  color: #000;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-.print-header {
-  border: 2px solid #111;
-  padding: 12px;
-  text-align: center;
-  margin-bottom: 18px;
-}
-
-.print-header h1,
-.print-header h2,
-.print-header p {
-  margin: 0 0 8px;
-}
-
-.print-header p {
-  margin-bottom: 0;
-  font-size: 18px;
-}
-
-.print-box-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px 18px;
-}
-
-.print-name-field {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.print-photo-field {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-}
-
-.print-status-field {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.print-field,
-.print-photo-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.print-field strong,
-.print-photo-field strong {
-  font-size: 20px;
-}
-
-.print-field span {
-  min-height: 48px;
-  border: 1px solid #777;
-  border-radius: 4px;
-  padding: 11px 12px;
-  font-size: 20px;
-  line-height: 1.3;
-}
-
-.full-print-field {
-  grid-column: 1 / -1;
-}
-
-.full-print-field span {
-  min-height: 95px;
-}
-
-.print-photo-box {
-  min-height: 155px;
-  border: 1px solid #777;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 10px;
-}
-
-#printPhoto {
-  width: 130px;
-  height: 150px;
-  border: 1px solid #111;
-  object-fit: cover;
-}
-
-.print-payment-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 24px;
-  padding: 16px;
-  background: #fff4b8;
-  border: 1px solid #c5a900;
-  font-size: 22px;
-}
-
-.print-payment-box p {
-  margin: 0;
-}
-
-.print-declaration {
-  margin-top: 28px;
+  color: #111;
+  background: #fff;
+  font-family: "Times New Roman", Times, serif;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
-.signature-line {
-  width: 220px;
-  margin: 70px 0 0 auto;
-  border-top: 1px solid #111;
-  padding-top: 8px;
-  text-align: center;
-  font-weight: 700;
+.receipt-title {
+  background: #183a5a;
+  color: #fff;
+  border-radius: 4px 4px 0 0;
+  padding: 10px 13px;
+  font: 700 13px Arial, Helvetica, sans-serif;
+}
+
+.receipt-body {
+  border: 1px solid #e0e0e0;
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  padding: 16px 16px 28px;
+}
+
+.receipt-logo {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 13px;
+  border: 5px solid #df0019;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #df0019;
+  background: #fff;
+  font: 900 16px Arial, Helvetica, sans-serif;
+  letter-spacing: 1px;
+}
+
+.receipt-logo span {
+  border: 2px solid #df0019;
+  border-radius: 50%;
+  padding: 11px 6px;
+}
+
+.receipt-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 10px 13px;
+  border-radius: 4px;
+  background: #dff2d8;
+  color: #356c2d;
+}
+
+.success-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #62c84f;
+  color: #fff;
+  font: 900 31px Arial, Helvetica, sans-serif;
+}
+
+.receipt-greeting,
+.receipt-copy,
+.receipt-note {
+  margin: 0 0 12px;
+}
+
+.receipt-details {
+  margin: 20px 0;
+}
+
+.receipt-details div {
+  display: grid;
+  grid-template-columns: 118px 1fr;
+  gap: 10px;
+  min-height: 20px;
+}
+
+.receipt-details dt {
+  font-weight: 400;
+}
+
+.receipt-details dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.receipt-details dd::before {
+  content: ": ";
+}
+
+.security-tips {
+  margin-top: 18px;
+  padding-top: 11px;
+}
+
+.security-tips h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.security-tips p {
+  margin: 0 0 24px;
 }
 
 .vacancy-box {
@@ -869,9 +857,9 @@ table {
     background: #fff;
   }
 
-  .print-sheet {
+  .receipt-sheet {
     width: 100%;
-    border: 0;
-    padding: 20px;
+    max-width: 720px;
+    padding: 0;
   }
 }
