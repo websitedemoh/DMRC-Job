@@ -16,18 +16,54 @@ const feeByCategory = {
   GEN: 400
 };
 
+const apiBaseUrl = (window.DMRC_API_BASE_URL || "").replace(/\/$/, "");
+const isGithubPages = window.location.hostname.endsWith("github.io");
+
 let uploadedPhoto = "";
 let submittedData = null;
 
+function getApiUrl(path) {
+  if (apiBaseUrl) {
+    return `${apiBaseUrl}${path}`;
+  }
+
+  if (isGithubPages) {
+    throw new Error("Payment backend is not available on GitHub Pages. Please open the Vercel deployment or set DMRC_API_BASE_URL to your backend URL.");
+  }
+
+  return path;
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    throw new Error("Payment backend did not return JSON. Please make sure the Node/Vercel backend is deployed and reachable.");
+  }
+
+  return response.json();
+}
+
 async function postJson(url, payload) {
-  const response = await fetch(url, {
+  const response = await fetch(getApiUrl(url), {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
   });
-  const data = await response.json();
+  const data = await readJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(data.error || "Payment request failed.");
+  }
+
+  return data;
+}
+
+async function getJson(url) {
+  const response = await fetch(getApiUrl(url));
+  const data = await readJsonResponse(response);
 
   if (!response.ok) {
     throw new Error(data.error || "Payment request failed.");
@@ -124,12 +160,7 @@ async function openPaymentCheckout(data) {
     redirectTarget: "_modal"
   });
 
-  const status = await fetch(`/api/cashfree/order-status?order_id=${encodeURIComponent(order.orderId)}`);
-  const statusData = await status.json();
-
-  if (!status.ok) {
-    throw new Error(statusData.error || "Could not verify payment status.");
-  }
+  const statusData = await getJson(`/api/cashfree/order-status?order_id=${encodeURIComponent(order.orderId)}`);
 
   if (statusData.orderStatus !== "PAID") {
     throw new Error("Payment is not completed yet. Please try again after completing payment.");

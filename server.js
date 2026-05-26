@@ -12,7 +12,8 @@ const cashfreeConfig = {
   appId: process.env.CASHFREE_APP_ID,
   secretKey: process.env.CASHFREE_SECRET_KEY,
   mode: process.env.CASHFREE_ENV === "sandbox" ? "sandbox" : "production",
-  apiVersion: process.env.CASHFREE_API_VERSION || "2025-01-01"
+  apiVersion: process.env.CASHFREE_API_VERSION || "2025-01-01",
+  allowedOrigin: process.env.ALLOWED_ORIGIN || "*"
 };
 
 const cashfreeBaseUrl =
@@ -65,7 +66,10 @@ function loadLocalEnv() {
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": cashfreeConfig.allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
   });
   response.end(JSON.stringify(payload));
 }
@@ -245,6 +249,11 @@ function serveStaticFile(request, response, url) {
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+
+  if (request.method === "OPTIONS") {
+    sendJson(response, 204, {});
+    return;
+  }
 
   if (request.method === "POST" && url.pathname === "/api/cashfree/create-order") {
     await createCashfreeOrder(request, response);
