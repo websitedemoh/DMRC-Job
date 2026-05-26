@@ -8,6 +8,7 @@ const {
   sendJson,
   validateConfig
 } = require("../_cashfree");
+const { upsertTransaction } = require("../_transactions");
 
 const feeByCategory = {
   SC: 250,
@@ -87,6 +88,22 @@ module.exports = async function handler(request, response) {
         error: cashfreeData.message || cashfreeData.error_description || "Cashfree order creation failed."
       });
     }
+
+    await upsertTransaction({
+      orderId: cashfreeData.order_id,
+      amount: cashfreeData.order_amount,
+      currency: cashfreeData.order_currency,
+      status: cashfreeData.order_status || "PENDING",
+      acknowledgement: String(payload.acknowledgement || ""),
+      category,
+      post: String(payload.post || ""),
+      customer: {
+        name: String(customer.name || ""),
+        email: String(customer.email || ""),
+        phone: customerPhone
+      },
+      latestCashfreeResponse: cashfreeData
+    });
 
     return sendJson(response, 200, {
       orderId: cashfreeData.order_id,

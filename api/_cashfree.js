@@ -1,4 +1,4 @@
-const { randomUUID } = require("node:crypto");
+const { createHmac, randomUUID, timingSafeEqual } = require("node:crypto");
 
 function getConfig() {
   const mode = process.env.CASHFREE_ENV === "sandbox" ? "sandbox" : "production";
@@ -8,6 +8,7 @@ function getConfig() {
     secretKey: process.env.CASHFREE_SECRET_KEY,
     mode,
     apiVersion: process.env.CASHFREE_API_VERSION || "2025-01-01",
+    webhookSecret: process.env.CASHFREE_WEBHOOK_SECRET,
     allowedOrigin: process.env.ALLOWED_ORIGIN || "*",
     baseUrl: mode === "sandbox" ? "https://sandbox.cashfree.com/pg" : "https://api.cashfree.com/pg"
   };
@@ -82,6 +83,22 @@ function getIdempotencyHeaders(config = getConfig()) {
   };
 }
 
+function verifyWebhookSignature(rawBody, signature, timestamp, config = getConfig()) {
+  const webhookSecret = config.webhookSecret || config.secretKey;
+
+  if (!webhookSecret || !signature || !timestamp) {
+    return false;
+  }
+
+  const expectedSignature = createHmac("sha256", webhookSecret)
+    .update(`${timestamp}${rawBody}`)
+    .digest("base64");
+  const expectedBuffer = Buffer.from(expectedSignature);
+  const receivedBuffer = Buffer.from(signature);
+
+  return expectedBuffer.length === receivedBuffer.length && timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
 module.exports = {
   getConfig,
   getRequestOrigin,
@@ -91,5 +108,6 @@ module.exports = {
   handleOptions,
   normalizePhone,
   sendJson,
-  validateConfig
+  validateConfig,
+  verifyWebhookSignature
 };
