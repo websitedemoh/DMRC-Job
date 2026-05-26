@@ -55,6 +55,24 @@ function formatReceiptDate(value) {
   }).format(value);
 }
 
+function formatDateOfBirth(value) {
+  if (!value) {
+    return "";
+  }
+
+  const [year, month, day] = value.split("-");
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(Number(year), Number(month) - 1, Number(day)));
+}
+
 function getFormData() {
   const category = categoryInput.value;
 
@@ -83,7 +101,7 @@ function fillPrintableForm(data) {
   document.getElementById("printFee").textContent = `Rs ${data.fee}`;
   document.getElementById("printMobile").textContent = data.mobile;
   document.getElementById("printEmail").textContent = data.email;
-  document.getElementById("printDob").textContent = data.dob;
+  document.getElementById("printDob").textContent = formatDateOfBirth(data.dob);
   document.getElementById("printAddress").textContent = data.address;
   document.getElementById("printTransaction").textContent = data.transactionNo;
   document.getElementById("printTransactionDate").textContent = data.transactionDate;
