@@ -66,18 +66,6 @@ body {
   word-spacing: 4px;
 }
 
-.site-disclaimer {
-  margin: 0 0 18px;
-  border: 1px solid #d6b300;
-  border-left: 6px solid #d6b300;
-  background: #fff8ce;
-  padding: 12px 14px;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 16px;
-  line-height: 1.45;
-  word-spacing: 0;
-}
-
 .bottom-share {
   display: flex;
   gap: 12px;
