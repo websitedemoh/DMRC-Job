@@ -9,6 +9,8 @@ const ackBox = document.getElementById("acknowledgementBox");
 const ackNumber = document.getElementById("ackNumber");
 const downloadPdf = document.getElementById("downloadPdf");
 const photoInput = document.getElementById("candidatePhoto");
+const marksheetInput = document.getElementById("marksheetFile");
+const aadharInput = document.getElementById("aadharFile");
 
 const servicesByCode = {
   OBC_CATEGORY: {
@@ -33,6 +35,8 @@ const apiBaseUrl = (window.DMRC_API_BASE_URL || "").replace(/\/$/, "");
 const isGithubPages = window.location.hostname.endsWith("github.io");
 
 let uploadedPhoto = "";
+let uploadedMarksheet = "";
+let uploadedAadhar = "";
 let submittedData = null;
 
 function getApiUrl(path) {
@@ -157,7 +161,9 @@ function getFormData() {
     dob: document.getElementById("dateOfBirth").value,
     address: document.getElementById("permanentAddress").value.trim(),
     fee: service ? service.amount : 0,
-    photo: uploadedPhoto
+    photo: uploadedPhoto,
+    marksheet: uploadedMarksheet,
+    aadhar: uploadedAadhar
   };
 }
 
@@ -280,6 +286,16 @@ photoInput.addEventListener("change", () => {
   reader.readAsDataURL(file);
 });
 
+marksheetInput.addEventListener("change", () => {
+  const file = marksheetInput.files[0];
+  uploadedMarksheet = file ? file.name : "";
+});
+
+aadharInput.addEventListener("change", () => {
+  const file = aadharInput.files[0];
+  uploadedAadhar = file ? file.name : "";
+});
+
 applicationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -289,6 +305,16 @@ applicationForm.addEventListener("submit", async (event) => {
 
   if (!uploadedPhoto) {
     alert("Please upload candidate photo.");
+    return;
+  }
+
+  if (!uploadedMarksheet) {
+    alert("Please upload marksheet.");
+    return;
+  }
+
+  if (!uploadedAadhar) {
+    alert("Please upload Aadhar card.");
     return;
   }
 
