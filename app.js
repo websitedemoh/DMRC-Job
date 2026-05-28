@@ -1,4 +1,5 @@
 const openApplyForm = document.getElementById("openApplyForm");
+const applyFormLinks = document.querySelectorAll(".apply-form-link");
 const closeApplyForm = document.getElementById("closeApplyForm");
 const applicationModal = document.getElementById("application-modal");
 const applicationForm = document.getElementById("dmrcApplicationForm");
@@ -237,6 +238,13 @@ async function openPaymentCheckout(data) {
 openApplyForm.addEventListener("click", (event) => {
   event.preventDefault();
   openModal();
+});
+
+applyFormLinks.forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    openModal();
+  });
 });
 
 document.querySelectorAll("[data-category]").forEach((button) => {
