@@ -89,6 +89,7 @@ module.exports = async function handler(request, response) {
       order_note: `DMRC Job - ${selectedService.name}`,
       order_tags: {
         acknowledgement: String(payload.acknowledgement || ""),
+        applicationId: String(payload.applicationId || payload.acknowledgement || ""),
         category,
         post: String(payload.post || ""),
         serviceCode,
@@ -115,6 +116,7 @@ module.exports = async function handler(request, response) {
       currency: cashfreeData.order_currency,
       status: cashfreeData.order_status || "PENDING",
       acknowledgement: String(payload.acknowledgement || ""),
+      applicationId: String(payload.applicationId || payload.acknowledgement || ""),
       category,
       post: String(payload.post || ""),
       serviceCode,

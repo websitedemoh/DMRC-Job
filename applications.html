@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Applications | DMRC Job</title>
+  <meta name="description" content="Admin application list for DMRC Job." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="policy-page">
+  <header class="policy-header">
+    <div class="policy-shell">
+      <a class="policy-brand" href="/">DMRC Job</a>
+      <nav class="policy-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/contact-us">Contact Us</a>
+        <a href="/terms-and-conditions">Terms &amp; Conditions</a>
+        <a href="/refunds-and-cancellations">Refunds &amp; Cancellations</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="policy-main">
+    <section class="policy-shell policy-card">
+      <h1>Application List</h1>
+      <p class="policy-summary">Enter the admin password to view stored candidate details and uploaded documents.</p>
+
+      <form class="admin-login" id="adminLoginForm">
+        <label>
+          Admin Password
+          <input type="password" id="adminPassword" placeholder="Enter admin password" required />
+        </label>
+        <button type="submit" class="service-pay-btn">Load Applications</button>
+      </form>
+
+      <p id="adminMessage" class="admin-message"></p>
+      <div class="admin-table-wrap" id="applicationsTableWrap" hidden>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Registration</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Documents</th>
+            </tr>
+          </thead>
+          <tbody id="applicationsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById("adminLoginForm");
+    const message = document.getElementById("adminMessage");
+    const tableWrap = document.getElementById("applicationsTableWrap");
+    const tableBody = document.getElementById("applicationsTableBody");
+
+    function documentLink(label, url) {
+      return url ? `<a href="${url}" target="_blank" rel="noopener">${label}</a>` : `<span>${label}: stored</span>`;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      message.textContent = "Loading...";
+      tableWrap.hidden = true;
+      tableBody.innerHTML = "";
+
+      try {
+        const password = encodeURIComponent(document.getElementById("adminPassword").value);
+        const response = await fetch(`/api/applications/list?password=${password}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Could not load applications.");
+        }
+
+        tableBody.innerHTML = data.applications.map((application) => `
+          <tr>
+            <td>${application.acknowledgement || application.applicationId}</td>
+            <td>${application.name}</td>
+            <td>${application.mobile}</td>
+            <td>${application.category}</td>
+            <td>${application.paymentStatus || application.status || "PENDING"}</td>
+            <td>
+              ${documentLink("Photo", application.fileLinks?.photo)}<br>
+              ${documentLink("Marksheet", application.fileLinks?.marksheet)}<br>
+              ${documentLink("Aadhar", application.fileLinks?.aadhar)}
+            </td>
+          </tr>
+        `).join("");
+        message.textContent = `${data.applications.length} application(s) found.`;
+        tableWrap.hidden = false;
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+  </script>
+</body>
+</html>

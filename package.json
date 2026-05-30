@@ -1,7 +1,7 @@
 {
   "scripts": {
     "start": "node server.js",
-    "lint": "node --check app.js && node --check server.js && node --check api/_cashfree.js && node --check api/_transactions.js && node --check api/cashfree/create-order.js && node --check api/cashfree/order-status.js && node --check api/webhooks/cashfree.js",
+    "lint": "node --check app.js && node --check server.js && node --check api/_cashfree.js && node --check api/_transactions.js && node --check api/_applications.js && node --check api/applications/save.js && node --check api/applications/list.js && node --check api/cashfree/create-order.js && node --check api/cashfree/order-status.js && node --check api/webhooks/cashfree.js",
     "build": "npm run lint"
   }
 }

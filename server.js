@@ -2,9 +2,11 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
+const { saveApplicationRecord } = require("./api/_applications");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 3000);
+const maxJsonBodyBytes = Number(process.env.MAX_JSON_BODY_BYTES || 15 * 1024 * 1024);
 
 loadLocalEnv();
 
@@ -32,7 +34,7 @@ const servicesByCode = {
   },
   ST_CATEGORY: {
     name: "ST Category",
-    amount: 250
+    amount: 1
   },
   SC_CATEGORY: {
     name: "SC Category",
@@ -100,7 +102,7 @@ function readJsonBody(request) {
     request.on("data", (chunk) => {
       body += chunk;
 
-      if (body.length > 100000) {
+      if (body.length > maxJsonBodyBytes) {
         request.destroy();
         reject(new Error("Request body is too large."));
       }
@@ -181,6 +183,7 @@ async function createCashfreeOrder(request, response) {
       order_note: `DMRC Job - ${selectedService.name}`,
       order_tags: {
         acknowledgement: String(payload.acknowledgement || ""),
+        applicationId: String(payload.applicationId || payload.acknowledgement || ""),
         category: String(payload.category || ""),
         post: String(payload.post || ""),
         serviceCode,
@@ -216,6 +219,22 @@ async function createCashfreeOrder(request, response) {
     });
   } catch (error) {
     return sendJson(response, 500, { error: error.message });
+  }
+}
+
+async function saveApplication(request, response) {
+  try {
+    const payload = await readJsonBody(request);
+    const application = await saveApplicationRecord(payload);
+
+    return sendJson(response, 200, {
+      ok: true,
+      applicationId: application.applicationId,
+      acknowledgement: application.acknowledgement,
+      paymentStatus: application.paymentStatus
+    });
+  } catch (error) {
+    return sendJson(response, 400, { error: error.message });
   }
 }
 
@@ -294,6 +313,11 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "POST" && url.pathname === "/api/cashfree/create-order") {
     await createCashfreeOrder(request, response);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/applications/save") {
+    await saveApplication(request, response);
     return;
   }
 

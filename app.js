@@ -23,7 +23,7 @@ const servicesByCode = {
   },
   ST_CATEGORY: {
     name: "ST Category",
-    amount: 250
+    amount: 1
   },
   SC_CATEGORY: {
     name: "SC Category",
@@ -33,10 +33,11 @@ const servicesByCode = {
 
 const apiBaseUrl = (window.DMRC_API_BASE_URL || "").replace(/\/$/, "");
 const isGithubPages = window.location.hostname.endsWith("github.io");
+const maxUploadSizeBytes = 5 * 1024 * 1024;
 
-let uploadedPhoto = "";
-let uploadedMarksheet = "";
-let uploadedAadhar = "";
+let uploadedPhoto = null;
+let uploadedMarksheet = null;
+let uploadedAadhar = null;
 let submittedData = null;
 
 function getApiUrl(path) {
@@ -89,6 +90,10 @@ async function getJson(url) {
   return data;
 }
 
+function formatCurrency(amount) {
+  return `\u20b9${amount} INR`;
+}
+
 function openModal() {
   applicationModal.classList.add("is-open");
   applicationModal.setAttribute("aria-hidden", "false");
@@ -101,7 +106,7 @@ function closeModal() {
 
 function updateFee() {
   const service = servicesByCode[`${categoryInput.value}_CATEGORY`];
-  feeAmount.textContent = service ? `₹${service.amount} INR` : "Select category";
+  feeAmount.textContent = service ? formatCurrency(service.amount) : "Select category";
 }
 
 function createAcknowledgementNumber() {
@@ -175,7 +180,7 @@ function fillPrintableForm(data) {
   document.getElementById("printPost").textContent = data.post;
   document.getElementById("printCategory").textContent = data.category;
   document.getElementById("printService").textContent = data.serviceName;
-  document.getElementById("printFee").textContent = `₹${data.fee} INR`;
+  document.getElementById("printFee").textContent = formatCurrency(data.fee);
   document.getElementById("printMobile").textContent = data.mobile;
   document.getElementById("printEmail").textContent = data.email;
   document.getElementById("printDob").textContent = formatDateOfBirth(data.dob);
@@ -191,7 +196,68 @@ function showPaidApplication(data) {
   fillPrintableForm(submittedData);
   ackNumber.textContent = submittedData.acknowledgement;
   ackBox.hidden = false;
-  applicationForm.querySelector(".pay-now-btn").textContent = `Paid ₹${submittedData.fee}`;
+  applicationForm.querySelector(".pay-now-btn").textContent = `Paid \u20b9${submittedData.fee}`;
+}
+
+function readFileForUpload(input, label) {
+  const file = input.files[0];
+
+  if (!file) {
+    throw new Error(`Please upload ${label}.`);
+  }
+
+  const allowed = file.type.startsWith("image/") || file.type === "application/pdf";
+
+  if (!allowed) {
+    throw new Error(`${label} must be an image or PDF file.`);
+  }
+
+  if (file.size > maxUploadSizeBytes) {
+    throw new Error(`${label} must be 5 MB or smaller.`);
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        dataUrl: reader.result
+      });
+    };
+    reader.onerror = () => reject(new Error(`Could not read ${label}.`));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveApplication(data) {
+  const savedApplication = await postJson("/api/applications/save", {
+    acknowledgement: data.acknowledgement,
+    name: data.name,
+    father: data.father,
+    post: data.post,
+    category: data.category,
+    serviceCode: data.serviceCode,
+    serviceName: data.serviceName,
+    mobile: data.mobile,
+    email: data.email,
+    dob: data.dob,
+    address: data.address,
+    fee: data.fee,
+    files: {
+      photo: data.photo,
+      marksheet: data.marksheet,
+      aadhar: data.aadhar
+    }
+  });
+
+  return {
+    ...data,
+    applicationId: savedApplication.applicationId,
+    acknowledgement: savedApplication.acknowledgement
+  };
 }
 
 async function openPaymentCheckout(data) {
@@ -199,17 +265,19 @@ async function openPaymentCheckout(data) {
     throw new Error("Cashfree checkout could not load. Please check your internet connection.");
   }
 
+  const savedData = await saveApplication(data);
   const order = await postJson("/api/cashfree/create-order", {
-    amount: data.fee,
-    acknowledgement: data.acknowledgement,
-    post: data.post,
-    category: data.category,
-    serviceCode: data.serviceCode,
-    serviceName: data.serviceName,
+    amount: savedData.fee,
+    acknowledgement: savedData.acknowledgement,
+    applicationId: savedData.applicationId,
+    post: savedData.post,
+    category: savedData.category,
+    serviceCode: savedData.serviceCode,
+    serviceName: savedData.serviceName,
     customer: {
-      name: data.name,
-      email: data.email,
-      phone: data.mobile
+      name: savedData.name,
+      email: savedData.email,
+      phone: savedData.mobile
     }
   });
 
@@ -231,7 +299,7 @@ async function openPaymentCheckout(data) {
   const submittedAt = new Date();
 
   return {
-    ...data,
+    ...savedData,
     orderId: order.orderId,
     paymentStatus: statusData.orderStatus,
     transactionNo: order.orderId,
@@ -271,31 +339,6 @@ applicationModal.addEventListener("click", (event) => {
 
 categoryInput.addEventListener("change", updateFee);
 
-photoInput.addEventListener("change", () => {
-  const file = photoInput.files[0];
-
-  if (!file) {
-    uploadedPhoto = "";
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    uploadedPhoto = reader.result;
-  };
-  reader.readAsDataURL(file);
-});
-
-marksheetInput.addEventListener("change", () => {
-  const file = marksheetInput.files[0];
-  uploadedMarksheet = file ? file.name : "";
-});
-
-aadharInput.addEventListener("change", () => {
-  const file = aadharInput.files[0];
-  uploadedAadhar = file ? file.name : "";
-});
-
 applicationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -303,29 +346,19 @@ applicationForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  if (!uploadedPhoto) {
-    alert("Please upload candidate photo.");
-    return;
-  }
-
-  if (!uploadedMarksheet) {
-    alert("Please upload marksheet.");
-    return;
-  }
-
-  if (!uploadedAadhar) {
-    alert("Please upload Aadhar card.");
-    return;
-  }
-
   const payButton = applicationForm.querySelector(".pay-now-btn");
   const originalButtonText = payButton.textContent;
-  const applicationData = getFormData();
 
   payButton.disabled = true;
-  payButton.textContent = "Opening Payment...";
+  payButton.textContent = "Saving Application...";
 
   try {
+    uploadedPhoto = await readFileForUpload(photoInput, "candidate photo");
+    uploadedMarksheet = await readFileForUpload(marksheetInput, "marksheet");
+    uploadedAadhar = await readFileForUpload(aadharInput, "Aadhar card");
+
+    const applicationData = getFormData();
+    payButton.textContent = "Opening Payment...";
     const paidApplication = await openPaymentCheckout(applicationData);
     showPaidApplication(paidApplication);
   } catch (error) {

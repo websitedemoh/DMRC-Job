@@ -891,6 +891,57 @@ table {
   padding: 12px 14px;
 }
 
+.admin-login {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 22px;
+}
+
+.admin-login label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-weight: 800;
+}
+
+.admin-login input {
+  border: 1px solid #aeb7c0;
+  border-radius: 5px;
+  padding: 11px;
+  font: 16px Arial, Helvetica, sans-serif;
+}
+
+.admin-message {
+  min-height: 24px;
+  margin: 16px 0;
+  font-weight: 800;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table th,
+.admin-table td {
+  border: 1px solid #d5dbe1;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 15px;
+}
+
+.admin-table th {
+  background: #0f3358;
+  color: #fff;
+}
+
+.admin-table a {
+  color: #0a5c9c;
+  font-weight: 800;
+}
+
 @media (max-width: 900px) {
   .top-header {
     height: 205px;
@@ -1003,6 +1054,10 @@ table {
 
   .policy-card h1 {
     font-size: 28px;
+  }
+
+  .admin-login {
+    grid-template-columns: 1fr;
   }
 }
 

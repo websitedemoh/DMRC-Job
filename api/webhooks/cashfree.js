@@ -10,6 +10,7 @@ const {
   getTransaction,
   markTransaction
 } = require("../_transactions");
+const { updateApplicationPayment } = require("../_applications");
 
 function readRawBody(request) {
   return new Promise((resolve, reject) => {
@@ -77,18 +78,30 @@ async function processWebhook(payload) {
       return;
     }
 
-    await markTransaction(orderId, "SUCCESS", payload.data || payload);
+    const transaction = await markTransaction(orderId, "SUCCESS", payload.data || payload);
+    await updateApplicationPayment(transaction.applicationId || transaction.acknowledgement, {
+      orderId,
+      paymentStatus: "SUCCESS"
+    });
     await creditWalletOnce(orderId, amount);
     return;
   }
 
   if (eventType === "payment.failed") {
-    await markTransaction(orderId, "FAILED", payload.data || payload);
+    const transaction = await markTransaction(orderId, "FAILED", payload.data || payload);
+    await updateApplicationPayment(transaction.applicationId || transaction.acknowledgement, {
+      orderId,
+      paymentStatus: "FAILED"
+    });
     return;
   }
 
   if (eventType === "payment.user_dropped") {
-    await markTransaction(orderId, "CANCELLED", payload.data || payload);
+    const transaction = await markTransaction(orderId, "CANCELLED", payload.data || payload);
+    await updateApplicationPayment(transaction.applicationId || transaction.acknowledgement, {
+      orderId,
+      paymentStatus: "CANCELLED"
+    });
   }
 }
 
