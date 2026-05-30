@@ -1,6 +1,7 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
+const { createSign } = require("node:crypto");
 
 const isVercel = Boolean(process.env.VERCEL);
 const storePath = isVercel
@@ -13,6 +14,10 @@ const uploadsDir = isVercel
 let memoryStore = {
   applications: []
 };
+let googleTokenCache = {
+  accessToken: "",
+  expiresAt: 0
+};
 
 function getSupabaseConfig() {
   return {
@@ -24,6 +29,211 @@ function getSupabaseConfig() {
 
 function getMaxFileBytes() {
   return Number(process.env.APPLICATION_FILE_MAX_MB || 5) * 1024 * 1024;
+}
+
+function isGoogleSheetsRequired() {
+  return String(process.env.GOOGLE_SHEETS_REQUIRED || "false").toLowerCase() === "true";
+}
+
+function isAppsScriptRequired() {
+  return String(process.env.GOOGLE_APPS_SCRIPT_REQUIRED || "false").toLowerCase() === "true";
+}
+
+function getAppsScriptUrl() {
+  return String(process.env.GOOGLE_APPS_SCRIPT_URL || "").trim();
+}
+
+function getGoogleSheetsConfig() {
+  return {
+    spreadsheetId: String(process.env.GOOGLE_SHEETS_SPREADSHEET_ID || "").trim(),
+    sheetName: String(process.env.GOOGLE_SHEETS_SHEET_NAME || "Applications").trim(),
+    serviceAccountEmail: String(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "").trim(),
+    privateKey: String(process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(/\\n/g, "\n").trim()
+  };
+}
+
+function hasGoogleSheetsConfig(config) {
+  return Boolean(config.spreadsheetId && config.sheetName && config.serviceAccountEmail && config.privateKey);
+}
+
+function toBase64Url(input) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function createGoogleServiceJwt(config) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+  const payload = {
+    iss: config.serviceAccountEmail,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: nowSeconds,
+    exp: nowSeconds + 3600
+  };
+  const encodedHeader = toBase64Url(JSON.stringify(header));
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
+  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+  const signer = createSign("RSA-SHA256");
+
+  signer.update(unsignedToken);
+  signer.end();
+
+  const signature = signer
+    .sign(config.privateKey, "base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+
+  return `${unsignedToken}.${signature}`;
+}
+
+async function getGoogleAccessToken(config) {
+  if (googleTokenCache.accessToken && Date.now() < googleTokenCache.expiresAt) {
+    return googleTokenCache.accessToken;
+  }
+
+  const assertion = createGoogleServiceJwt(config);
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion
+  });
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: body.toString()
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || "Could not get Google access token.");
+  }
+
+  const expiresInSeconds = Number(data.expires_in || 3600);
+
+  googleTokenCache = {
+    accessToken: data.access_token,
+    expiresAt: Date.now() + Math.max(30, expiresInSeconds - 60) * 1000
+  };
+
+  return googleTokenCache.accessToken;
+}
+
+function getSheetRange(sheetName) {
+  const escapedSheetName = String(sheetName || "Applications").replace(/'/g, "''");
+  return `'${escapedSheetName}'!A:Z`;
+}
+
+function getApplicationSheetRow(application) {
+  const files = application.files || {};
+  const photo = files.photo || {};
+  const marksheet = files.marksheet || {};
+  const aadhar = files.aadhar || {};
+
+  return [
+    application.createdAt || "",
+    application.updatedAt || "",
+    application.applicationId || "",
+    application.acknowledgement || "",
+    application.name || "",
+    application.father || "",
+    application.post || "",
+    application.category || "",
+    application.serviceCode || "",
+    application.serviceName || "",
+    application.fee || 0,
+    application.mobile || "",
+    application.email || "",
+    application.dob || "",
+    application.address || "",
+    application.paymentStatus || "",
+    application.orderId || "",
+    photo.originalName || "",
+    photo.path || "",
+    marksheet.originalName || "",
+    marksheet.path || "",
+    aadhar.originalName || "",
+    aadhar.path || ""
+  ];
+}
+
+async function appendApplicationToGoogleSheet(application) {
+  const config = getGoogleSheetsConfig();
+
+  if (!hasGoogleSheetsConfig(config)) {
+    if (isGoogleSheetsRequired()) {
+      throw new Error("Google Sheets sync is required but config is missing.");
+    }
+    return;
+  }
+
+  const accessToken = await getGoogleAccessToken(config);
+  const range = getSheetRange(config.sheetName);
+  const url =
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(config.spreadsheetId)}`
+    + `/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      majorDimension: "ROWS",
+      values: [getApplicationSheetRow(application)]
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || "Google Sheets append failed.");
+  }
+}
+
+async function appendApplicationToAppsScript(application) {
+  const url = getAppsScriptUrl();
+
+  if (!url) {
+    if (isAppsScriptRequired()) {
+      throw new Error("Google Apps Script sync is required but GOOGLE_APPS_SCRIPT_URL is missing.");
+    }
+    return false;
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(application)
+  });
+  const raw = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Apps Script sync failed with status ${response.status}.`);
+  }
+
+  try {
+    const data = raw ? JSON.parse(raw) : {};
+
+    if (data && data.ok === false) {
+      throw new Error(data.error || "Apps Script returned error.");
+    }
+  } catch (error) {
+    if (isAppsScriptRequired()) {
+      throw error;
+    }
+  }
+
+  return true;
 }
 
 function sanitizeText(value, maxLength = 300) {
@@ -206,6 +416,20 @@ async function saveApplicationRecord(payload) {
   }
 
   await writeStore(store);
+
+  try {
+    const sentToAppsScript = await appendApplicationToAppsScript(application);
+
+    if (!sentToAppsScript) {
+      await appendApplicationToGoogleSheet(application);
+    }
+  } catch (error) {
+    if (isGoogleSheetsRequired() || isAppsScriptRequired()) {
+      throw error;
+    }
+    console.error("Google Sheets sync skipped:", error.message);
+  }
+
   return application;
 }
 
