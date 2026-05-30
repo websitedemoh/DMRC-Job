@@ -21,7 +21,7 @@ const servicesByCode = {
   },
   ST_CATEGORY: {
     name: "ST Category",
-    amount: 250
+    amount: 1
   },
   SC_CATEGORY: {
     name: "SC Category",
