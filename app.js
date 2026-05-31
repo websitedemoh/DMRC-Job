@@ -11,6 +11,8 @@ const downloadPdf = document.getElementById("downloadPdf");
 const photoInput = document.getElementById("candidatePhoto");
 const marksheetInput = document.getElementById("marksheetFile");
 const aadharInput = document.getElementById("aadharFile");
+const categoryCertificateInput = document.getElementById("categoryCertificateFile");
+const categoryCertificateHint = document.getElementById("categoryCertificateHint");
 
 const servicesByCode = {
   OBC_CATEGORY: {
@@ -38,6 +40,7 @@ const maxUploadSizeBytes = 5 * 1024 * 1024;
 let uploadedPhoto = null;
 let uploadedMarksheet = null;
 let uploadedAadhar = null;
+let uploadedCategoryCertificate = null;
 let submittedData = null;
 
 function getApiUrl(path) {
@@ -107,6 +110,20 @@ function closeModal() {
 function updateFee() {
   const service = servicesByCode[`${categoryInput.value}_CATEGORY`];
   feeAmount.textContent = service ? formatCurrency(service.amount) : "Select category";
+  updateCategoryCertificateRequirement();
+}
+
+function requiresCategoryCertificate(category) {
+  return ["SC", "ST", "OBC"].includes(String(category || "").toUpperCase());
+}
+
+function updateCategoryCertificateRequirement() {
+  const isRequired = requiresCategoryCertificate(categoryInput.value);
+
+  categoryCertificateInput.required = isRequired;
+  categoryCertificateHint.textContent = isRequired
+    ? "Required for selected category."
+    : "Optional for GEN category.";
 }
 
 function createAcknowledgementNumber() {
@@ -168,7 +185,8 @@ function getFormData() {
     fee: service ? service.amount : 0,
     photo: uploadedPhoto,
     marksheet: uploadedMarksheet,
-    aadhar: uploadedAadhar
+    aadhar: uploadedAadhar,
+    categoryCertificate: uploadedCategoryCertificate
   };
 }
 
@@ -249,7 +267,8 @@ async function saveApplication(data) {
     files: {
       photo: data.photo,
       marksheet: data.marksheet,
-      aadhar: data.aadhar
+      aadhar: data.aadhar,
+      categoryCertificate: data.categoryCertificate
     }
   });
 
@@ -338,6 +357,7 @@ applicationModal.addEventListener("click", (event) => {
 });
 
 categoryInput.addEventListener("change", updateFee);
+updateFee();
 
 applicationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -356,6 +376,9 @@ applicationForm.addEventListener("submit", async (event) => {
     uploadedPhoto = await readFileForUpload(photoInput, "candidate photo");
     uploadedMarksheet = await readFileForUpload(marksheetInput, "marksheet");
     uploadedAadhar = await readFileForUpload(aadharInput, "Aadhar card");
+    uploadedCategoryCertificate = categoryCertificateInput.files[0]
+      ? await readFileForUpload(categoryCertificateInput, "category certificate")
+      : null;
 
     const applicationData = getFormData();
     payButton.textContent = "Opening Payment...";

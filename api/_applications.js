@@ -15,6 +15,7 @@ let memoryStore = {
   applications: []
 };
 let googleTokenCache = {
+  scope: "",
   accessToken: "",
   expiresAt: 0
 };
@@ -52,8 +53,19 @@ function getGoogleSheetsConfig() {
   };
 }
 
+function getGoogleDriveConfig() {
+  return {
+    folderId: String(process.env.GOOGLE_DRIVE_FOLDER_ID || "").trim(),
+    makePublicLinks: String(process.env.GOOGLE_DRIVE_PUBLIC_LINKS || "false").toLowerCase() === "true"
+  };
+}
+
+function hasGoogleServiceAccountConfig(config) {
+  return Boolean(config.serviceAccountEmail && config.privateKey);
+}
+
 function hasGoogleSheetsConfig(config) {
-  return Boolean(config.spreadsheetId && config.sheetName && config.serviceAccountEmail && config.privateKey);
+  return Boolean(config.spreadsheetId && config.sheetName && hasGoogleServiceAccountConfig(config));
 }
 
 function toBase64Url(input) {
@@ -72,7 +84,10 @@ function createGoogleServiceJwt(config) {
   };
   const payload = {
     iss: config.serviceAccountEmail,
-    scope: "https://www.googleapis.com/auth/spreadsheets",
+    scope: [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file"
+    ].join(" "),
     aud: "https://oauth2.googleapis.com/token",
     iat: nowSeconds,
     exp: nowSeconds + 3600
@@ -95,7 +110,16 @@ function createGoogleServiceJwt(config) {
 }
 
 async function getGoogleAccessToken(config) {
-  if (googleTokenCache.accessToken && Date.now() < googleTokenCache.expiresAt) {
+  const requestedScope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.file"
+  ].join(" ");
+
+  if (
+    googleTokenCache.accessToken
+    && googleTokenCache.scope === requestedScope
+    && Date.now() < googleTokenCache.expiresAt
+  ) {
     return googleTokenCache.accessToken;
   }
 
@@ -120,6 +144,7 @@ async function getGoogleAccessToken(config) {
   const expiresInSeconds = Number(data.expires_in || 3600);
 
   googleTokenCache = {
+    scope: requestedScope,
     accessToken: data.access_token,
     expiresAt: Date.now() + Math.max(30, expiresInSeconds - 60) * 1000
   };
@@ -129,7 +154,7 @@ async function getGoogleAccessToken(config) {
 
 function getSheetRange(sheetName) {
   const escapedSheetName = String(sheetName || "Applications").replace(/'/g, "''");
-  return `'${escapedSheetName}'!A:Z`;
+  return `'${escapedSheetName}'!A:ZZ`;
 }
 
 function getApplicationSheetRow(application) {
@@ -137,6 +162,9 @@ function getApplicationSheetRow(application) {
   const photo = files.photo || {};
   const marksheet = files.marksheet || {};
   const aadhar = files.aadhar || {};
+  const categoryCertificate = files.categoryCertificate || {};
+  const verification = application.verification || {};
+  const fileLocation = (file) => file?.path || file?.webViewLink || file?.fileId || "";
 
   return [
     application.createdAt || "",
@@ -157,11 +185,17 @@ function getApplicationSheetRow(application) {
     application.paymentStatus || "",
     application.orderId || "",
     photo.originalName || "",
-    photo.path || "",
+    fileLocation(photo),
     marksheet.originalName || "",
-    marksheet.path || "",
+    fileLocation(marksheet),
     aadhar.originalName || "",
-    aadhar.path || ""
+    fileLocation(aadhar),
+    categoryCertificate.originalName || "",
+    fileLocation(categoryCertificate),
+    verification.status || "PENDING",
+    verification.remarks || "",
+    verification.verifiedBy || "",
+    verification.verifiedAt || ""
   ];
 }
 
@@ -252,8 +286,13 @@ function safeFileName(fileName) {
   return cleaned || "document";
 }
 
-function parseDataUrl(file, label) {
+function parseDataUrl(file, label, options = {}) {
+  const { required = true } = options;
+
   if (!file || !file.dataUrl) {
+    if (!required) {
+      return null;
+    }
     throw new Error(`${label} file is required.`);
   }
 
@@ -281,6 +320,13 @@ function parseDataUrl(file, label) {
     fileName: safeFileName(file.name),
     size: Number(file.size || buffer.length)
   };
+}
+
+function normalizeVerificationStatus(status) {
+  const allowedStatuses = new Set(["PENDING", "VERIFIED", "REJECTED", "NEEDS_REVIEW"]);
+  const normalizedStatus = sanitizeText(status, 30).toUpperCase();
+
+  return allowedStatuses.has(normalizedStatus) ? normalizedStatus : "PENDING";
 }
 
 async function readStore() {
@@ -338,6 +384,80 @@ async function uploadToSupabase({ applicationId, kind, file }) {
   };
 }
 
+async function createDrivePublicPermission(fileId, accessToken) {
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      type: "anyone",
+      role: "reader"
+    })
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error?.message || "Could not create Google Drive file permission.");
+  }
+}
+
+async function uploadToGoogleDrive({ applicationId, kind, file }) {
+  const driveConfig = getGoogleDriveConfig();
+  const googleConfig = getGoogleSheetsConfig();
+
+  if (!driveConfig.folderId || !hasGoogleServiceAccountConfig(googleConfig)) {
+    return null;
+  }
+
+  const accessToken = await getGoogleAccessToken(googleConfig);
+  const boundary = `dmrc_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+  const metadata = {
+    name: `${applicationId}-${kind}-${file.fileName}`,
+    parents: [driveConfig.folderId]
+  };
+  const multipartBody = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\n`
+      + "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+      + `${JSON.stringify(metadata)}\r\n`
+      + `--${boundary}\r\n`
+      + `Content-Type: ${file.contentType}\r\n\r\n`
+    ),
+    file.buffer,
+    Buffer.from(`\r\n--${boundary}--`)
+  ]);
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink,mimeType", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`
+    },
+    body: multipartBody
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || !data.id) {
+    throw new Error(data.error?.message || `Could not upload ${kind} to Google Drive.`);
+  }
+
+  if (driveConfig.makePublicLinks) {
+    await createDrivePublicPermission(data.id, accessToken);
+  }
+
+  return {
+    storage: "google_drive",
+    fileId: data.id,
+    path: data.id,
+    webViewLink: data.webViewLink || "",
+    webContentLink: data.webContentLink || "",
+    contentType: file.contentType,
+    originalName: file.fileName,
+    size: file.size
+  };
+}
+
 async function saveLocalFile({ applicationId, kind, file }) {
   const localDir = path.join(uploadsDir, applicationId);
   const filePath = path.join(localDir, `${kind}-${Date.now()}-${file.fileName}`);
@@ -355,6 +475,12 @@ async function saveLocalFile({ applicationId, kind, file }) {
 }
 
 async function storeFile(applicationId, kind, file) {
+  const driveFile = await uploadToGoogleDrive({ applicationId, kind, file });
+
+  if (driveFile) {
+    return driveFile;
+  }
+
   const supabaseFile = await uploadToSupabase({ applicationId, kind, file });
   return supabaseFile || saveLocalFile({ applicationId, kind, file });
 }
@@ -371,14 +497,22 @@ async function saveApplicationRecord(payload) {
   }
 
   const applicationId = sanitizeText(payload.acknowledgement, 80) || `APP-${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const category = sanitizeText(payload.category, 20).toUpperCase();
+  const requiresCategoryCertificate = ["SC", "ST", "OBC"].includes(category);
   const files = payload.files || {};
   const photo = parseDataUrl(files.photo, "Photo");
   const marksheet = parseDataUrl(files.marksheet, "Marksheet");
   const aadhar = parseDataUrl(files.aadhar, "Aadhar card");
+  const categoryCertificate = parseDataUrl(files.categoryCertificate, "Category certificate", {
+    required: requiresCategoryCertificate
+  });
   const savedFiles = {
     photo: await storeFile(applicationId, "photo", photo),
     marksheet: await storeFile(applicationId, "marksheet", marksheet),
-    aadhar: await storeFile(applicationId, "aadhar", aadhar)
+    aadhar: await storeFile(applicationId, "aadhar", aadhar),
+    categoryCertificate: categoryCertificate
+      ? await storeFile(applicationId, "category-certificate", categoryCertificate)
+      : null
   };
   const now = new Date().toISOString();
   const application = {
@@ -387,7 +521,7 @@ async function saveApplicationRecord(payload) {
     name: sanitizeText(payload.name, 100),
     father: sanitizeText(payload.father, 100),
     post: sanitizeText(payload.post, 120),
-    category: sanitizeText(payload.category, 20).toUpperCase(),
+    category,
     serviceCode: sanitizeText(payload.serviceCode, 60),
     serviceName: sanitizeText(payload.serviceName, 120),
     mobile: phone,
@@ -397,6 +531,12 @@ async function saveApplicationRecord(payload) {
     fee: Number(payload.fee || 0),
     paymentStatus: sanitizeText(payload.paymentStatus || "PENDING", 30),
     orderId: sanitizeText(payload.orderId || "", 80),
+    verification: {
+      status: normalizeVerificationStatus(payload.verification?.status || "PENDING"),
+      remarks: sanitizeText(payload.verification?.remarks, 500),
+      verifiedBy: sanitizeText(payload.verification?.verifiedBy, 120),
+      verifiedAt: sanitizeText(payload.verification?.verifiedAt, 40)
+    },
     files: savedFiles,
     createdAt: now,
     updatedAt: now
@@ -453,6 +593,31 @@ async function updateApplicationPayment(applicationId, updates) {
   return existing;
 }
 
+async function updateApplicationVerification(applicationId, verificationPayload = {}) {
+  if (!applicationId) {
+    return null;
+  }
+
+  const store = await readStore();
+  const existing = store.applications.find((item) => item.applicationId === applicationId || item.acknowledgement === applicationId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+
+  existing.verification = {
+    status: normalizeVerificationStatus(verificationPayload.status || existing.verification?.status || "PENDING"),
+    remarks: sanitizeText(verificationPayload.remarks, 500),
+    verifiedBy: sanitizeText(verificationPayload.verifiedBy, 120),
+    verifiedAt: now
+  };
+  existing.updatedAt = now;
+  await writeStore(store);
+  return existing;
+}
+
 async function listApplications() {
   const store = await readStore();
   return store.applications || [];
@@ -460,6 +625,10 @@ async function listApplications() {
 
 async function createSignedUrl(file) {
   const config = getSupabaseConfig();
+
+  if (file?.storage === "google_drive") {
+    return file.webViewLink || file.webContentLink || null;
+  }
 
   if (!file || file.storage !== "supabase" || !config.url || !config.serviceRoleKey) {
     return null;
@@ -487,5 +656,6 @@ module.exports = {
   createSignedUrl,
   listApplications,
   saveApplicationRecord,
-  updateApplicationPayment
+  updateApplicationPayment,
+  updateApplicationVerification
 };

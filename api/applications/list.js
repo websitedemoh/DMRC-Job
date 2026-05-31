@@ -27,7 +27,8 @@ module.exports = async function handler(request, response) {
     fileLinks: {
       photo: await createSignedUrl(application.files?.photo),
       marksheet: await createSignedUrl(application.files?.marksheet),
-      aadhar: await createSignedUrl(application.files?.aadhar)
+      aadhar: await createSignedUrl(application.files?.aadhar),
+      categoryCertificate: await createSignedUrl(application.files?.categoryCertificate)
     }
   })));
 

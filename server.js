@@ -2,7 +2,12 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
-const { saveApplicationRecord } = require("./api/_applications");
+const {
+  createSignedUrl,
+  listApplications,
+  saveApplicationRecord,
+  updateApplicationVerification
+} = require("./api/_applications");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 3000);
@@ -274,6 +279,71 @@ async function getCashfreeOrderStatus(request, response, url) {
   }
 }
 
+async function listStoredApplications(response, url) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const password = String(url.searchParams.get("password") || "");
+
+  if (adminPassword && password !== adminPassword) {
+    return sendJson(response, 401, { error: "Invalid admin password." });
+  }
+
+  if (!adminPassword) {
+    return sendJson(response, 500, { error: "ADMIN_PASSWORD is not configured." });
+  }
+
+  const applications = await listApplications();
+  const withLinks = await Promise.all(applications.map(async (application) => ({
+    ...application,
+    fileLinks: {
+      photo: await createSignedUrl(application.files?.photo),
+      marksheet: await createSignedUrl(application.files?.marksheet),
+      aadhar: await createSignedUrl(application.files?.aadhar),
+      categoryCertificate: await createSignedUrl(application.files?.categoryCertificate)
+    }
+  })));
+
+  return sendJson(response, 200, {
+    ok: true,
+    applications: withLinks
+  });
+}
+
+async function verifyStoredApplication(request, response, url) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const payload = await readJsonBody(request);
+  const password = String(url.searchParams.get("password") || payload.password || "");
+
+  if (adminPassword && password !== adminPassword) {
+    return sendJson(response, 401, { error: "Invalid admin password." });
+  }
+
+  if (!adminPassword) {
+    return sendJson(response, 500, { error: "ADMIN_PASSWORD is not configured." });
+  }
+
+  const applicationId = String(payload.applicationId || "").trim();
+
+  if (!applicationId) {
+    return sendJson(response, 400, { error: "applicationId is required." });
+  }
+
+  const updated = await updateApplicationVerification(applicationId, {
+    status: payload.status,
+    remarks: payload.remarks,
+    verifiedBy: payload.verifiedBy
+  });
+
+  if (!updated) {
+    return sendJson(response, 404, { error: "Application not found." });
+  }
+
+  return sendJson(response, 200, {
+    ok: true,
+    applicationId: updated.applicationId,
+    verification: updated.verification
+  });
+}
+
 function serveStaticFile(request, response, url) {
   const cleanRoutes = {
     "/contact-us": "/contact-us.html",
@@ -323,6 +393,16 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "GET" && url.pathname === "/api/cashfree/order-status") {
     await getCashfreeOrderStatus(request, response, url);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/applications/list") {
+    await listStoredApplications(response, url);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/applications/verify") {
+    await verifyStoredApplication(request, response, url);
     return;
   }
 

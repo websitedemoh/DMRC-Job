@@ -44,6 +44,7 @@
               <th>Category</th>
               <th>Status</th>
               <th>Documents</th>
+              <th>Verification</th>
             </tr>
           </thead>
           <tbody id="applicationsTableBody"></tbody>
@@ -57,44 +58,161 @@
     const message = document.getElementById("adminMessage");
     const tableWrap = document.getElementById("applicationsTableWrap");
     const tableBody = document.getElementById("applicationsTableBody");
+    const adminPasswordInput = document.getElementById("adminPassword");
 
-    function documentLink(label, url) {
-      return url ? `<a href="${url}" target="_blank" rel="noopener">${label}</a>` : `<span>${label}: stored</span>`;
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
     }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    function documentLink(label, url, hasFile = true) {
+      return url
+        ? `<a href="${url}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`
+        : `<span>${escapeHtml(label)}: ${hasFile ? "stored" : "not uploaded"}</span>`;
+    }
+
+    function verificationControl(application) {
+      const id = application.applicationId || application.acknowledgement;
+      const verification = application.verification || {};
+      const currentStatus = verification.status || "PENDING";
+      const remarks = verification.remarks || "";
+      const verifiedBy = verification.verifiedBy || "";
+      const verifiedAt = verification.verifiedAt ? `<div>At: ${escapeHtml(verification.verifiedAt)}</div>` : "";
+
+      return `
+        <div data-application-id="${escapeHtml(id)}">
+          <div>
+            <label>
+              Status
+              <select data-verify-status>
+                <option value="PENDING" ${currentStatus === "PENDING" ? "selected" : ""}>PENDING</option>
+                <option value="VERIFIED" ${currentStatus === "VERIFIED" ? "selected" : ""}>VERIFIED</option>
+                <option value="REJECTED" ${currentStatus === "REJECTED" ? "selected" : ""}>REJECTED</option>
+                <option value="NEEDS_REVIEW" ${currentStatus === "NEEDS_REVIEW" ? "selected" : ""}>NEEDS_REVIEW</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <label>
+              Verified By
+              <input type="text" data-verify-by placeholder="Verifier name" value="${escapeHtml(verifiedBy)}" />
+            </label>
+          </div>
+          <div>
+            <label>
+              Remarks
+              <input type="text" data-verify-remarks placeholder="Remarks" value="${escapeHtml(remarks)}" />
+            </label>
+          </div>
+          <button type="button" data-verify-save>Save</button>
+          <div data-verify-message></div>
+          ${verifiedAt}
+        </div>
+      `;
+    }
+
+    function renderApplications(applications) {
+      tableBody.innerHTML = applications.map((application) => `
+        <tr>
+          <td>${escapeHtml(application.acknowledgement || application.applicationId)}</td>
+          <td>${escapeHtml(application.name)}</td>
+          <td>${escapeHtml(application.mobile)}</td>
+          <td>${escapeHtml(application.category)}</td>
+          <td>${escapeHtml(application.paymentStatus || application.status || "PENDING")}</td>
+          <td>
+            ${documentLink("Photo", application.fileLinks?.photo)}<br>
+            ${documentLink("Marksheet", application.fileLinks?.marksheet)}<br>
+            ${documentLink("Aadhar", application.fileLinks?.aadhar)}<br>
+            ${documentLink(
+              "Category Certificate",
+              application.fileLinks?.categoryCertificate,
+              Boolean(application.files?.categoryCertificate)
+            )}
+          </td>
+          <td>${verificationControl(application)}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadApplications() {
       message.textContent = "Loading...";
       tableWrap.hidden = true;
       tableBody.innerHTML = "";
 
+      const password = encodeURIComponent(adminPasswordInput.value);
+      const response = await fetch(`/api/applications/list?password=${password}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not load applications.");
+      }
+
+      renderApplications(data.applications || []);
+      message.textContent = `${(data.applications || []).length} application(s) found.`;
+      tableWrap.hidden = false;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
       try {
-        const password = encodeURIComponent(document.getElementById("adminPassword").value);
-        const response = await fetch(`/api/applications/list?password=${password}`);
+        await loadApplications();
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    tableBody.addEventListener("click", async (event) => {
+      const saveButton = event.target.closest("[data-verify-save]");
+
+      if (!saveButton) {
+        return;
+      }
+
+      const container = saveButton.closest("[data-application-id]");
+
+      if (!container) {
+        return;
+      }
+
+      const verifyMessage = container.querySelector("[data-verify-message]");
+      const applicationId = container.getAttribute("data-application-id");
+      const status = container.querySelector("[data-verify-status]").value;
+      const verifiedBy = container.querySelector("[data-verify-by]").value.trim();
+      const remarks = container.querySelector("[data-verify-remarks]").value.trim();
+
+      verifyMessage.textContent = "Saving...";
+      saveButton.disabled = true;
+
+      try {
+        const password = encodeURIComponent(adminPasswordInput.value);
+        const response = await fetch(`/api/applications/verify?password=${password}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            applicationId,
+            status,
+            verifiedBy,
+            remarks
+          })
+        });
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || "Could not load applications.");
+          throw new Error(data.error || "Could not save verification.");
         }
 
-        tableBody.innerHTML = data.applications.map((application) => `
-          <tr>
-            <td>${application.acknowledgement || application.applicationId}</td>
-            <td>${application.name}</td>
-            <td>${application.mobile}</td>
-            <td>${application.category}</td>
-            <td>${application.paymentStatus || application.status || "PENDING"}</td>
-            <td>
-              ${documentLink("Photo", application.fileLinks?.photo)}<br>
-              ${documentLink("Marksheet", application.fileLinks?.marksheet)}<br>
-              ${documentLink("Aadhar", application.fileLinks?.aadhar)}
-            </td>
-          </tr>
-        `).join("");
-        message.textContent = `${data.applications.length} application(s) found.`;
-        tableWrap.hidden = false;
+        verifyMessage.textContent = `Saved: ${data.verification.status}`;
       } catch (error) {
-        message.textContent = error.message;
+        verifyMessage.textContent = error.message;
+      } finally {
+        saveButton.disabled = false;
       }
     });
   </script>
